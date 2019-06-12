@@ -1,0 +1,78 @@
+apiVersion: "kubeflow.org/v1"
+kind: "TFJob"
+metadata:
+  name: "tf-benchmark-gpu"
+spec:
+  tfReplicaSpecs:
+    PS:
+      replicas: 1
+      template:
+        metadata:
+          annotations:
+            scheduling.k8s.io/group-name: "tf-benchmark-gpu"
+        spec:
+          containers:
+          - args:
+            - python
+            - tf_cnn_benchmarks.py
+            - --batch_size=64
+            - --model=resnet50
+            - --variable_update=parameter_server
+            - --flush_stdout=true
+            - --num_gpus=1
+            - --local_parameter_device=cpu
+            - --device=cpu
+            - --data_format=NHWC
+            image: swr.cn-north-1.myhuaweicloud.com/kubeflow-test/tf-benchmarks-cpu:v1
+            name: tensorflow
+            ports:
+            - containerPort: 2222
+              name: tfjob-port
+            resources:
+              limits:
+                cpu: "4"
+                memory: 8Gi
+              requests:
+                cpu: "4"
+                memory: 8Gi
+            workingDir: /opt/tf-benchmarks/scripts/tf_cnn_benchmarks
+          restartPolicy: OnFailure
+          imagePullSecrets:
+          - name: imagepull-secret
+    Worker:
+      replicas: 1
+      template:
+        metadata:
+          annotations:
+            scheduling.k8s.io/group-name: "tf-benchmark-gpu"
+        spec:
+          containers:
+          - args:
+            - python
+            - tf_cnn_benchmarks.py
+            - --batch_size=64
+            - --model=resnet50
+            - --variable_update=parameter_server
+            - --flush_stdout=true
+            - --num_gpus=1
+            - --local_parameter_device=cpu
+            - --device=gpu
+            - --data_format=NHWC
+            image: swr.cn-north-1.myhuaweicloud.com/kubeflow-test/tf-benchmarks-gpu:v1
+            name: tensorflow
+            ports:
+            - containerPort: 2222
+              name: tfjob-port
+            resources:
+              limits:
+                cpu: "4"
+                memory: 32Gi
+                nvidia.com/gpu-tesla-v100-32GB: "1"
+              requests:
+                cpu: "4"
+                memory: 32Gi
+                nvidia.com/gpu-tesla-v100-32GB: "1"
+            workingDir: /opt/tf-benchmarks/scripts/tf_cnn_benchmarks
+          restartPolicy: OnFailure
+          imagePullSecrets:
+          - name: imagepull-secret
